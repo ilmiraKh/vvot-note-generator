@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Создание задания</title>
+    <style>
+        body {
+            max-width: 600px;
+            margin: 40px auto;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 15px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Создание задания</h1>
+
+<form method="POST" action="/create-task">
+    <label for="lecture_name">Название лекции *</label>
+    <input type="text" id="lecture_name" name="lecture_name" required>
+
+    <label for="video_url">Публичная ссылка на видео (Яндекс Диск) *</label>
+    <input type="url" id="video_url" name="video_url" required>
+
+    <button type="submit">Отправить</button>
+</form>
+
+</body>
+</html>

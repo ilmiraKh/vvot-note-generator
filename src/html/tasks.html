@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список заданий</title>
+    <style>
+        body {
+            max-width: 1000px;
+            margin: 40px auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        .status-ok {
+            color: green;
+        }
+        .status-error {
+            color: red;
+        }
+        .status-queue {
+            color: gray;
+        }
+        .status-processing {
+            color: orange;
+        }
+        a {
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Список заданий</h1>
+
+<p><a href="/form">Создать новое задание</a></p>
+
+<table>
+    <thead>
+        <tr>
+            <th>Дата создания</th>
+            <th>ID</th>
+            <th>Название лекции</th>
+            <th>Ссылка на видео</th>
+            <th>Статус</th>
+            <th>PDF</th>
+            <th>Ошибка</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!--
+        <tr>
+            <td>2025-01-01 12:00</td>
+            <td>uuid</td>
+            <td>Математика</td>
+            <td><a href="..." target="_blank">Видео</a></td>
+            <td class="status-ok">Успешно завершено</td>
+            <td><a href="...">Скачать</a></td>
+            <td></td>
+        </tr>
+        -->
+    </tbody>
+</table>
+
+<p>Для обновления статусов обновите страницу.</p>
+
+</body>
+</html>
