@@ -11,6 +11,25 @@ paths:
         type: object_storage
         object: ${form_object_key}
         service_account_id: ${sa_id}
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: 
+                - name
+                - url
+              properties:
+                name:
+                  type: string
+                url:
+                  type: string
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: ${create_function_id}
+        service_account_id: ${sa_id}  
 
   /tasks:
     get:
