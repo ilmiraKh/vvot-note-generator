@@ -132,6 +132,7 @@ resource "yandex_api_gateway" "api" {
     tasks_object_key = yandex_storage_object.tasks.key
 
     create_function_id = yandex_function.create_func.id
+    tasks_function_id = yandex_function.tasks_func.id
 
     sa_id = yandex_iam_service_account.sa.id
   })
@@ -139,6 +140,36 @@ resource "yandex_api_gateway" "api" {
 
 output "api_gateway" {
   value = yandex_api_gateway.api.domain
+}
+
+data "archive_file" "tasks_func_zip" {
+  type        = "zip"
+  output_path = "tasks_func.zip"
+  source_dir  = "../src/tasks"
+}
+
+resource "yandex_function" "tasks_func" {
+  name               = "${var.prefix}-tasks"
+  user_hash          = data.archive_file.tasks_func_zip.output_sha256
+  runtime            = "python311"
+  entrypoint         = "main.handler"
+  memory             = 128
+  execution_timeout  = 30
+  folder_id          = var.folder_id
+  service_account_id = yandex_iam_service_account.sa.id
+
+  environment = {
+    YDB_ENDPOINT          = "grpcs://${yandex_ydb_database_serverless.ydb.ydb_api_endpoint}"
+    YDB_DATABASE          = yandex_ydb_database_serverless.ydb.database_path
+    TABLE_NAME = yandex_ydb_table.tasks_table.path
+
+    AWS_ACCESS_KEY_ID = yandex_iam_service_account_static_access_key.sa_static_key.access_key
+    AWS_SECRET_ACCESS_KEY = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
+  }
+
+  content {
+    zip_filename = data.archive_file.tasks_func_zip.output_path
+  }
 }
 
 resource "yandex_message_queue" "dlq" {

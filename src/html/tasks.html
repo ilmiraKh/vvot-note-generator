@@ -37,6 +37,58 @@
             text-decoration: none;
         }
     </style>
+    <script>
+        async function loadTasks() {
+        const container = document.getElementById("tasks-container");
+        container.innerHTML = "";
+
+        try {
+            const res = await fetch("/ydb");
+            const data = await res.json();
+
+            data.tasks.forEach(task => {
+                const statusLower = (task.status || "").toLowerCase();
+                let statusClass = "";
+                switch(statusLower) {
+                    case "успешно":
+                    case "ok": statusClass = "status-ok"; break;
+                    case "ошибка": statusClass = "status-error"; break;
+                    case "в очереди":
+                    case "queue": statusClass = "status-queue"; break;
+                    case "в обработке":
+                    case "processing": statusClass = "status-processing"; break;
+                }
+
+                const taskDiv = document.createElement("div");
+                taskDiv.className = "task";
+
+                let html = `<h2>${task.name || "Без названия"}</h2>`;
+
+                if(task.created_at) html += `<p><strong>Дата создания:</strong> ${task.created_at}</p>`;
+                if(task.id) html += `<p><strong>ID:</strong> ${task.id}</p>`;
+                if(task.url) html += `<p><strong>Видео:</strong> <a href="${task.url}" target="_blank">Смотреть</a></p>`;
+                if(task.status) html += `<p><strong>Статус:</strong> <span class="${statusClass}">${task.status}</span></p>`;
+
+                if(task.pdf) {
+                    html += `<p><strong>PDF:</strong> <a href="${task.pdf}" target="_blank">Скачать</a></p>`;
+                }
+
+                if(task.error) {
+                    html += `<p><strong>Ошибка:</strong> ${task.error}</p>`;
+                }
+
+                taskDiv.innerHTML = html;
+                container.appendChild(taskDiv);
+            });
+
+        } catch(e) {
+            console.error("Ошибка загрузки заданий:", e);
+            container.innerHTML = "<p>Не удалось загрузить задания</p>";
+            }
+        }
+        
+        window.onload = loadTasks;
+        </script>
 </head>
 <body>
 
@@ -44,34 +96,9 @@
 
 <p><a href="/form">Создать новое задание</a></p>
 
-<table>
-    <thead>
-        <tr>
-            <th>Дата создания</th>
-            <th>ID</th>
-            <th>Название лекции</th>
-            <th>Ссылка на видео</th>
-            <th>Статус</th>
-            <th>PDF</th>
-            <th>Ошибка</th>
-        </tr>
-    </thead>
-    <tbody>
-        <!--
-        <tr>
-            <td>2025-01-01 12:00</td>
-            <td>uuid</td>
-            <td>Математика</td>
-            <td><a href="..." target="_blank">Видео</a></td>
-            <td class="status-ok">Успешно завершено</td>
-            <td><a href="...">Скачать</a></td>
-            <td></td>
-        </tr>
-        -->
-    </tbody>
-</table>
-
 <p>Для обновления статусов обновите страницу.</p>
+
+<div id="tasks-container"></div>
 
 </body>
 </html>

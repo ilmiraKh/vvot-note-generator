@@ -38,3 +38,10 @@ paths:
         type: object_storage
         object: ${tasks_object_key}
         service_account_id: ${sa_id}
+  
+  /ydb:
+    get:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: ${tasks_function_id}
+        service_account_id: ${sa_id}  
