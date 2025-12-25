@@ -2,10 +2,9 @@ terraform {
   required_providers {
     yandex = {
       source = "yandex-cloud/yandex"
+      version = "0.175.0"
     }
   }
-
-  required_version = ">= 0.13"
 }
 
 provider "yandex" {
@@ -25,7 +24,9 @@ resource "yandex_resourcemanager_folder_iam_member" "sa_roles" {
     "storage.editor",
     "ymq.admin",
     "ydb.editor",
-    "api-gateway.editor"
+    "api-gateway.editor",
+    "ai.speechkit-stt.user",
+    "ai.languageModels.user"
   ])
 
   folder_id = var.folder_id
@@ -34,6 +35,10 @@ resource "yandex_resourcemanager_folder_iam_member" "sa_roles" {
 }
 
 resource "yandex_iam_service_account_static_access_key" "sa_static_key" {
+  service_account_id = yandex_iam_service_account.sa.id
+}
+
+resource "yandex_iam_service_account_api_key" "sa_api_key" {
   service_account_id = yandex_iam_service_account.sa.id
 }
 
@@ -327,7 +332,7 @@ resource "yandex_function" "download_lecture_func" {
 
 resource "yandex_message_queue" "extract_audio_queue" {
   name                       = "${var.prefix}-extract-audio"
-  visibility_timeout_seconds = 30
+  visibility_timeout_seconds = 3600
   receive_wait_time_seconds  = 20
   access_key = yandex_iam_service_account_static_access_key.sa_static_key.access_key
   secret_key = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
@@ -416,6 +421,76 @@ resource "yandex_message_queue" "recognize_audio_queue" {
 
 data "yandex_message_queue" "recognize_audio_queue" {
   name       = yandex_message_queue.recognize_audio_queue.name
+  access_key = yandex_iam_service_account_static_access_key.sa_static_key.access_key
+  secret_key = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
+}
+
+resource "yandex_function_trigger" "recognize_audio_trigger" {
+  name      = "${var.prefix}-recognize-audio"
+  folder_id = var.folder_id
+
+  message_queue {
+    queue_id           = yandex_message_queue.recognize_audio_queue.arn
+    batch_cutoff       = 2
+    batch_size         = 1
+    service_account_id = yandex_iam_service_account.sa.id
+  }
+
+  function {
+    id                 = yandex_function.recognize_audio_func.id
+    service_account_id = yandex_iam_service_account.sa.id
+  }
+}
+
+data "archive_file" "recognize_audio_zip" {
+  type        = "zip"
+  output_path = "recognize_audio.zip"
+  source_dir  = "../src/recognize_audio"
+}
+
+resource "yandex_function" "recognize_audio_func" {
+  name               = "${var.prefix}-recognize-audio"
+  user_hash          = data.archive_file.recognize_audio_zip.output_sha256
+  runtime            = "python311"
+  entrypoint         = "main.handler"
+  memory             = 512
+  execution_timeout  = 60
+  folder_id          = var.folder_id
+  service_account_id = yandex_iam_service_account.sa.id
+
+  environment = {
+    BUCKET_NAME = yandex_storage_bucket.bucket.bucket
+
+    AWS_ACCESS_KEY_ID = yandex_iam_service_account_static_access_key.sa_static_key.access_key
+    AWS_SECRET_ACCESS_KEY = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
+    
+    FOLDER_ID = var.folder_id
+    API_KEY = yandex_iam_service_account_api_key.sa_api_key.secret_key
+
+    CUR_QUEUE = data.yandex_message_queue.recognize_audio_queue.url
+    NEXT_QUEUE = data.yandex_message_queue.generate_pdf_queue.url
+  }
+
+  content {
+    zip_filename = data.archive_file.recognize_audio_zip.output_path
+  }
+}
+
+resource "yandex_message_queue" "generate_pdf_queue" {
+  name                       = "${var.prefix}-generate-pdf"
+  visibility_timeout_seconds = 3600
+  receive_wait_time_seconds  = 20
+  access_key = yandex_iam_service_account_static_access_key.sa_static_key.access_key
+  secret_key = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = yandex_message_queue.dlq.arn
+    maxReceiveCount     = 3
+  })
+}
+
+data "yandex_message_queue" "generate_pdf_queue" {
+  name       = yandex_message_queue.generate_pdf_queue.name
   access_key = yandex_iam_service_account_static_access_key.sa_static_key.access_key
   secret_key = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
 }

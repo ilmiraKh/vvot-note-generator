@@ -8,7 +8,6 @@ variable "folder_id" {
   type = string
 }
 
-
 variable "prefix" {
   type = string
   description = "префикс ресурсов"

@@ -18,6 +18,8 @@ yc storage s3api get-object \
 audio="/tmp/audio/$id"
 ffmpeg -i "$video" -vn -f mpeg -c:a libmp3lame -q:a 6 "$audio"
 
+duration=$(ffmpeg -i "$audio" 2>&1 | grep "Duration" | awk '{print $2}' | tr -d ,)
+
 audio_object_name="tmp/audio/$id"
 yc storage s3api put-object \
     --body "$audio" \
@@ -27,7 +29,7 @@ yc storage s3api put-object \
 
 rm -f "$video" "$audio"
 
-message="{\"id\":\"$id\",\"object_name\":\"$audio_object_name\"}"
+message="{\"id\":\"$id\",\"object_name\":\"$audio_object_name\",\"duration\":\"$duration\"}"
 
 curl \
     --request POST \
