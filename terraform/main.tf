@@ -14,7 +14,7 @@ provider "yandex" {
 }
 
 resource "yandex_iam_service_account" "sa" {
-  name = "serviceaccount"
+  name = "${var.prefix}-serviceaccount"
   folder_id = var.folder_id
 }
 
@@ -50,6 +50,8 @@ resource "yandex_ydb_database_serverless" "ydb" {
 resource "yandex_ydb_table" "tasks_table" {
   path              = "${var.prefix}-tasks"
   connection_string = yandex_ydb_database_serverless.ydb.ydb_full_endpoint
+
+  depends_on = [yandex_ydb_database_serverless.ydb]
 
   column {
     name     = "created_at"
@@ -183,6 +185,8 @@ resource "yandex_message_queue" "dlq" {
   name = "${var.prefix}-dlq"
   access_key = yandex_iam_service_account_static_access_key.sa_static_key.access_key
   secret_key = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
+
+  depends_on = [yandex_resourcemanager_folder_iam_member.sa_roles]
 }
 
 data "archive_file" "dlq_func_zip" {

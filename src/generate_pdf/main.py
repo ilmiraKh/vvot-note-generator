@@ -133,4 +133,8 @@ def handler(event, context):
         pdf_object_name = save_pdf(object_name, task_id)
         insert_data(task_id, 'успешно', pdf=pdf_object_name)
     except Exception as e:
+        # может эта проверка и не нужна, можно было оставить выброс исключения, 
+        # тогда сообщение в очереди обрабатывалось бы
+        # пока не перешло бы в dlq, где у меня есть обработчик, к-ый ставит статус "ошибка"
+        # но я решила так оставить для этой функции
         insert_data(task_id, 'ошибка', error='Произошла ошибка при создании PDF-конспекта')

@@ -64,7 +64,20 @@
 
                 let html = `<h2>${task.name || "Без названия"}</h2>`;
 
-                if(task.created_at) html += `<p><strong>Дата создания:</strong> ${task.created_at}</p>`;
+                if (task.created_at) {
+                const iso = task.created_at
+                            .replace(" ", "T")         
+                            .replace(/\.\d{3}\d+/, ".993") 
+                        + "Z";
+
+                    const date = new Date(iso);
+
+                    const formatted = date.toLocaleString("ru-RU", {
+                        timeZone: "Europe/Moscow"
+                    });
+
+                    html += `<p><strong>Дата создания:</strong> ${formatted}</p>`;
+                }
                 if(task.id) html += `<p><strong>ID:</strong> ${task.id}</p>`;
                 if(task.url) html += `<p><strong>Видео:</strong> <a href="${task.url}" target="_blank">Смотреть</a></p>`;
                 if(task.status) html += `<p><strong>Статус:</strong> <span class="${statusClass}">${task.status}</span></p>`;
