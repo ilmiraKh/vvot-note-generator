@@ -62,15 +62,16 @@ def start_recognition(object_name):
     result = response.json()
     return result.get('id')
 
-def json_to_md(data, level=1):
-    md = []
+def json_to_text(data, level=0):
+    lines = []
+    indent = "  " * level
     for k, v in data.items():
-        md.append("#" * level + " " + k)
+        lines.append(f"{indent}{k}:")
         if isinstance(v, dict):
-            md.append(json_to_md(v, level + 1))
+            lines.append(json_to_text(v, level + 1))
         else:
-            md.append(str(v))
-    return "\n".join(md)
+            lines.append(f"{indent}  {v}")
+    return "\n".join(lines)
 
 def check_recognition(operation_id):
     url = f"https://stt.api.cloud.yandex.net/stt/v3/getRecognition"
@@ -94,7 +95,7 @@ def check_recognition(operation_id):
         summary_str = result["result"]["summarization"]["results"][0]["response"]
         summary_json = json.loads(summary_str)
 
-        return {"done":True, 'text': json_to_md(summary_json)}
+        return {"done":True, 'text': json_to_text(summary_json)}
 
     except requests.HTTPError as e:
         if response.status_code == 404:
@@ -138,7 +139,7 @@ def save_text(text, id):
         file_obj,
         BUCKET_NAME,
         object_name,
-        ExtraArgs={'ContentType': 'text/markdown'}
+        ExtraArgs={'ContentType': 'text/plain'}
     )
 
     return object_name
@@ -148,30 +149,26 @@ def parse_duration(duration_str):
     return int(h) * 3600 + int(m) * 60 + float(s)
 
 def handler(event, context):
-    try:
-        message = json.loads(event['messages'][0]['details']['message']['body'])
-        id = message['id']
-        object_name = message['object_name']
-        operation_id = message.get('operation_id')
+    message = json.loads(event['messages'][0]['details']['message']['body'])
+    id = message['id']
+    object_name = message['object_name']
+    operation_id = message.get('operation_id')
 
-        duration = parse_duration(message.get('duration'))
-        delay = duration // 6 + 30
+    duration = parse_duration(message.get('duration'))
+    delay = duration // 6 + 30
 
-        if not operation_id:
-            operation_id = start_recognition(object_name)
-            message['operation_id'] = operation_id
+    if not operation_id:
+        operation_id = start_recognition(object_name)
+        message['operation_id'] = operation_id
 
-        result = check_recognition(operation_id)
-        if not result.get('done', False):
-            send_message_to_queue(message, CUR_QUEUE, delay, True)
-            return {"statusCode": 200, "message": "Recognition pending"}
+    result = check_recognition(operation_id)
+    if not result.get('done', False):
+        send_message_to_queue(message, CUR_QUEUE, delay, True)
+        return {"statusCode": 200, "message": "Recognition pending"}
 
-        text = result['text']
-        object_name = save_text(text, id)
-        message = {'id': id, 'object_name': object_name}
-        send_message_to_queue(message, NEXT_QUEUE, 0, False)
+    text = result['text']
+    object_name = save_text(text, id)
+    message = {'id': id, 'object_name': object_name}
+    send_message_to_queue(message, NEXT_QUEUE, 0, False)
 
-        return {"message": "ok", 'statusCode': 200}
-    except Exception as e:
-        print(str(e))
-        return {'statusCode': 500, 'message': str(e)}
+    return {"message": "ok", 'statusCode': 200}   

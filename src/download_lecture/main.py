@@ -95,21 +95,18 @@ def send_message_to_queue(id, object_name):
     )
 
 def handler(event, context):
-    try:
-        message = json.loads(event['messages'][0]['details']['message']['body'])
-        id = message['id']
-        video_url = message['video_url']
+    message = json.loads(event['messages'][0]['details']['message']['body'])
+    id = message['id']
+    video_url = message['video_url']
 
-        if valid_ya_disk_video_url(video_url):
-            insert_data(id)
-        else:
-            insert_data(id, "Невалидная ссылка для скачивания видео")
-            return {"message": "ok", 'statusCode': 200}
-
-        object_name = download_video(id, video_url)
-        send_message_to_queue(id, object_name)
-
+    if valid_ya_disk_video_url(video_url):
+        insert_data(id)
+    else:
+        insert_data(id, "Невалидная ссылка для скачивания видео")
         return {"message": "ok", 'statusCode': 200}
-    except Exception as e:
-        return {'statusCode': 500, 'message': str(e)}
+
+    object_name = download_video(id, video_url)
+    send_message_to_queue(id, object_name)
+
+    return {"message": "ok", 'statusCode': 200}
     

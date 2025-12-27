@@ -170,6 +170,8 @@ resource "yandex_function" "tasks_func" {
 
     AWS_ACCESS_KEY_ID = yandex_iam_service_account_static_access_key.sa_static_key.access_key
     AWS_SECRET_ACCESS_KEY = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
+
+    BUCKET_NAME = yandex_storage_bucket.bucket.bucket
   }
 
   content {
@@ -493,4 +495,53 @@ data "yandex_message_queue" "generate_pdf_queue" {
   name       = yandex_message_queue.generate_pdf_queue.name
   access_key = yandex_iam_service_account_static_access_key.sa_static_key.access_key
   secret_key = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
+}
+
+resource "yandex_function_trigger" "generate_pdf_trigger" {
+  name      = "${var.prefix}-generate-pdf"
+  folder_id = var.folder_id
+
+  message_queue {
+    queue_id           = yandex_message_queue.generate_pdf_queue.arn
+    batch_cutoff       = 2
+    batch_size         = 1
+    service_account_id = yandex_iam_service_account.sa.id
+  }
+
+  function {
+    id                 = yandex_function.generate_pdf_func.id
+    service_account_id = yandex_iam_service_account.sa.id
+  }
+}
+
+data "archive_file" "generate_pdf_zip" {
+  type        = "zip"
+  output_path = "generate_pdf.zip"
+  source_dir  = "../src/generate_pdf"
+}
+
+resource "yandex_function" "generate_pdf_func" {
+  name               = "${var.prefix}-generate-pdf"
+  user_hash          = data.archive_file.generate_pdf_zip.output_sha256
+  runtime            = "python311"
+  entrypoint         = "main.handler"
+  memory             = 512
+  execution_timeout  = 60
+  folder_id          = var.folder_id
+  service_account_id = yandex_iam_service_account.sa.id
+
+  environment = {
+    BUCKET_NAME = yandex_storage_bucket.bucket.bucket
+
+    AWS_ACCESS_KEY_ID = yandex_iam_service_account_static_access_key.sa_static_key.access_key
+    AWS_SECRET_ACCESS_KEY = yandex_iam_service_account_static_access_key.sa_static_key.secret_key
+
+    YDB_ENDPOINT          = "grpcs://${yandex_ydb_database_serverless.ydb.ydb_api_endpoint}"
+    YDB_DATABASE          = yandex_ydb_database_serverless.ydb.database_path
+    TABLE_NAME = yandex_ydb_table.tasks_table.path
+  }
+
+  content {
+    zip_filename = data.archive_file.generate_pdf_zip.output_path
+  }
 }
